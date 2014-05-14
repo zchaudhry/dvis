@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+  <html> <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=7, IE=9, IE=10"> <meta
+    name="viewport" content="initial-scale=1,
+    maximum-scale=1,user-scalable=no"/> <title>Simple Map</title>
+    <link rel="stylesheet" href="http://js.arcgis.com/3.9/js/esri/css/esri.css">
+
+  <style>
+    html, body, #map {
+        height: 100%; width: 100%; margin: 0; padding: 0;
+      } 
+  </style>
+
+  <script>var dojoConfig = { isDebug: true };</script>
+  <script src="http://js.arcgis.com/3.9"></script> <script>
+   var map;
+   require([
+    "dojox/data/XmlStore",
+    "esri/map",
+    "esri/geometry/Point",
+    "esri/SpatialReference",
+    "esri/graphic",
+    "esri/symbols/PictureMarkerSymbol",
+    "esri/symbols/SimpleLineSymbol",
+    "dojo/_base/Color",
+    "esri/layers/GraphicsLayer",
+    "dojo/dom",
+    "esri/dijit/InfoWindowLite",
+    "esri/InfoTemplate",
+    "dojo/dom-construct",
+    "dojo/domReady!"
+  ], function(
+      XmlStore,
+      Map,
+      Point,
+      SpatialReference,
+      Graphic,
+      PictureMarkerSymbol,
+      SimpleLineSymbol,
+      Color,
+      GraphicsLayer,
+      dom,
+      InfoWindowLite,
+      InfoTemplate,
+      domConstruct
+  ){
+        // map
+        var map = new Map("map", {
+          basemap: "topo", center: [-122.45,37.75], // long, lat
+          zoom: 7,
+          sliderStyle: "small"
+        });
+        
+        
+        // symbol for the graphic
+         var picBaseUrl = "http://static.arcgis.com/images/Symbols/Shapes/";
+        var symbol = new PictureMarkerSymbol(picBaseUrl + "GreenPin1LargeB.png", 32, 32).setOffset(0, 15);
+        
+        // create infowindow  for the graphic
+        var infoWindow = new InfoWindowLite(null, domConstruct.create("div", null, null, map.root));
+        infoWindow.startup();
+        map.setInfoWindow(infoWindow);
+        //create the infowindow template for attributes
+        var template = new InfoTemplate();
+        template.setTitle("<b>${CityName}</b>");
+        template.setContent(" X: ${XCoord}, Y: ${YCoord}  and Elevation: ${EleFt} Feet");
+
+        //create a graphic layer
+        var gLayer = new GraphicsLayer();
+        map.addLayer(gLayer);
+        map.infoWindow.resize(200, 75);
+        
+        // fetch data from database
+        var store = new dojox.data.XmlStore({url:"http://localhost:8080/test/getFeatures.php", rootItem: "point"});
+        
+        // once request is completed, create graphics
+        var getPoints = function(items){
+          var graphic;
+          for(var i = 0; i < items.length; i++){
+            var item = items[i];
+            var city = store.getValue(item, "FName");
+            var elev = store.getValue(item, "Elev");
+            var xval = parseFloat(store.getValue(item,"Long"));
+            var yval = parseFloat(store.getValue(item, "Lat"));
+            var point = new Point([xval,yval],new SpatialReference({ wkid:4326 }));
+            map.centerAt(point);
+            graphic = new Graphic(point,symbol);
+            graphic.setAttributes( {"XCoord":point.x,"YCoord":point.y, "CityName":city, "EleFt":elev});
+            graphic.setInfoTemplate(template);
+            gLayer.add(graphic);
+          }
+        }
+        
+    // fetch data
+    store.fetch({query: {}, queryOptions: {ignoreCase: true}, onComplete: getPoints});
+    
+  });
+
+ 
+  </script>
+</head> <body class="claro">
+  
+  <div id="map"></div>
+ 
+</body> </html>

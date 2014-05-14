@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GNIS in Grid</title>
+    <!-- this configuration assumes that the dgrid package is located
+         on the filesystem as a sibling to the dojo package -->
+         <style type="text/css">
+            @import "http://localhost:8080/materials2/dojo/../dijit/themes/claro/claro.css";
+         @import "http://localhost:8080/materials2/dojo/../dojox/grid/resources/Grid.css";
+        @import ".http://localhost:8080/materials2/dojo/../dojox/grid/resources/claroGrid.css";
+        .dojoxGrid table {
+            margin: 10;
+          }
+         </style>
+    <script data-dojo-config="async: 1"
+            src="http://localhost:8080/materials2/dojo/dojo.js"></script>
+     <script>
+       var createDialog, delDialog, grid, selectedID, selectedEle, selectedLat, seletedLong,selectedName;
+       
+       require(["dojo/_base/declare","dgrid/Selection","dojox/data/XmlStore","dgrid/OnDemandGrid", "dojo/store/DataStore","dijit/Dialog", "dijit/form/Button", "dijit/form/textBox","dojo/domReady!"],
+               function(declare, Selection, XmlStore,Grid, DataStore, Dialog, Button){
+        
+        var store = new dojox.data.XmlStore({url: "http://localhost:8080/test/getFeatures.php", rootItem: "point"});
+        var objectStore = new DataStore({ store: store });
+        var getUsers = function(items, request){
+          //for(var i = 0; i < items.length; i++){
+          //  var item = items[i];
+          //  console.log("First Name: " + store.getValue(item, "firstName"));
+          //}
+          
+        function getValue(item) {
+            return item[this.field]['text()'];
+        }
+        var CustomGrid = declare([ Grid, Selection ]);
+        grid = new CustomGrid({
+        store: objectStore, // a Dojo object store
+        rowSelector: '20px',
+        selectionMode: 'single',
+        sortDesc:false,
+        sortInfo:1,
+        columns: [
+            {label: "Feature Name", field: "FName", sortable: true, get: getValue},
+            {label: "Latitude", field: "Lat", get: getValue},
+            {label: "Longitude", field: "Long", get: getValue},
+            {label: "Elevation (ft)", field: "Elev", get: getValue}
+        ],
+        query:{}
+    }, "grid");
+        
+        grid.on("dgrid-select", function(event){
+    // Report the item from the selected row to the console.
+    var fid = event.rows[0].data.FID;
+    
+        console.log("Row selected: ", fid['text()']);
+        selectedID = fid['text()'];
+        selectedName = event.rows[0].data.FName['text()'];
+        selectedEle =event.rows[0].data.Elev['text()'];
+        selectedLat = event.rows[0].data.Lat['text()'];
+        seletedLong = event.rows[0].data.Long['text()'];
+        console.log(selectedID);
+        });         
+        
+        }
+        
+    var request = store.fetch({query: {}, queryOptions: {ignoreCase: true}, onComplete: getUsers});
+   
+        // dialog box to create a new feature
+         createDialog = new Dialog({
+            title: "Add a GNIS Feature",
+            style: "width: 300px"
+            
+        });
+        // dialog box to delete a feature
+        delDialog = new Dialog({
+            title: "Delete a record????",
+            style: "width:300px"
+            });
+        // button to show create dialog box
+       var createButton = new Button({
+        label: "Add Record!",
+        onClick: function(){
+           createDialog.set("title", "Add Record");
+           createDialog.set("content","Feautre Name: <input dojoType='dijit.form.TextBox' type='text' value='fautre name' id='name'>" 
+            + "Latitude: <input dojoType='dijit.form.TextBox' type='text' name='lat' id='lat'>"
+            + "Longitude: <input dojoType='dijit.form.TextBox' type='text' name='lon' id='lon'>"
+            + "Elevation: <input dojoType='dijit.form.TextBox' type='text' name='elev' id='elev'>"
+            + "<input dojoType='dijit.form.Button' id = 'submit' label = 'Submit' onClick = 'addFeature();'>");
+            createDialog.show();
+        }
+        },"crbutton");
+       // edit button
+       var editButton = new Button({
+        label: "Edit Record",
+        onClick:function(){
+            if (!selectedID) {
+               alert("Please select a record first");
+               console.log("Please select a record first");
+            }else{
+                createDialog.set("title", "Edit Record");
+                createDialog.set("content","Feautre Name: <input dojoType='dijit.form.TextBox' type='text' value='fautre name' id='name'>" 
+            + "Latitude: <input dojoType='dijit.form.TextBox' type='text' name='lat' id='lat'>"
+            + "Longitude: <input dojoType='dijit.form.TextBox' type='text' name='lon' id='lon'>"
+            + "Elevation: <input dojoType='dijit.form.TextBox' type='text' name='elev' id='elev'>"
+            + "<input dojoType='dijit.form.Button' id = 'submit' label = 'Submit' onClick = 'editFeature();'>");
+                //feature name
+                var f = dojo.byId("name");
+                f.value = selectedName;
+                //feature elev
+                var el = dojo.byId("elev");
+                el.value = selectedEle;
+                //feature longitude
+                var ln = dojo.byId("lon");
+                ln.value = seletedLong;
+                // feature latitude
+                var lt = dojo.byId("lat");
+                lt.value = selectedLat;
+                createDialog.show();
+            }
+        }
+        }, "edbutton");
+       // delete button
+       var deleteButton = new Button({
+        label: "Delete Record!",
+        onClick: function(){
+          if (!selectedID) {
+               console.log("Please select a record first");
+               delDialog.set('content', 'Please select a row first!');
+               delDialog.show();
+            }else{
+            delDialog.set('content', "Are you sure you want to delete record with selected ID: " + selectedID
+            + "   and Feature Name: " + selectedName
+            + "<br><input dojoType='dijit.form.Button' id = 'delete' label = 'Delete' onClick = 'delFeature();'>"
+            + "<input dojoType='dijit.form.Button' id = 'Cancel' label = 'Cancel' onClick = 'delDialog.hide();'>");
+            delDialog.show();
+        }}
+        },"delbutton");
+       
+       
+       });
+       
+       // will take the form data and submit to php server
+       function addFeature(){
+           
+           var f = dojo.byId("name");
+           //console.log(f.value);
+            var la = dojo.byId("lat");
+            var ln = dojo.byId("lon");
+            var el = dojo.byId("elev");
+            console.log ("http://localhost:8080/test/addFeature.php?" + "name='" + f.value + "'&lat="+ la.value + "&longi=" + ln.value + "&ele=" + el.value);
+            dojo.xhrPost({
+                    url: "http://localhost:8080/test/addFeature.php?" + "name='" + f.value + "'&lat="+ la.value + "&longi=" + ln.value + "&ele=" + el.value,
+    
+                    load: function(result) {    
+                    console.log(result);
+                    }
+            });
+            grid.refresh();
+            createDialog.hide();
+        }
+        function editFeature() {
+            // get the ID of the record you want to update
+           
+            dojo.xhrPost({
+                    url: "http://localhost:8080/test/update.php?" + "id=" + selectedID,
+    
+                    load: function(result) {    
+                       console.log(result);
+                    }
+            });
+            grid.refresh();
+            createDialog.hide();
+        }
+        function delFeature() {
+            
+            // get the ID of the record you want to delete
+           
+            dojo.xhrPost({
+                    url: "http://localhost:8080/test/delFeature.php?" + "id=" + selectedID,
+    
+                    load: function(result) {    
+                       console.log(result);
+                    }
+            });
+            grid.refresh();
+            delDialog.hide();
+           
+        }
+
+    </script>
+</head>
+<body class="claro">
+   <h1>Testing Data Managment using PHP web services </h1>
+   <div>
+    <button id="crbutton" type="button">Add Record</button>
+    <button id="edbutton" type="button">Edit Record</button>
+    <button id="delbutton" type="button">Delete Record</button>
+</div>
+    <div id="grid"></div>
+</body>
+</html>
